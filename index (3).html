@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zwarte Woud — Packing Checklist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f7f7f4;
+      --surface:  #ffffff;
+      --surface2: #f2f2ef;
+      --surface3: #eaeae6;
+      --text1:    #1a1a18;
+      --text2:    #5c5c58;
+      --text3:    #9a9a95;
+      --border:   rgba(0,0,0,0.09);
+      --border2:  rgba(0,0,0,0.15);
+      --green:    #1D9E75;
+      --green-bg: #E1F5EE;
+      --green-t:  #085041;
+      --radius:   10px;
+      --radius-sm:6px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text1);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    #root { max-width: 680px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+
+    button, input, select {
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    input {
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      background: var(--surface);
+      color: var(--text1);
+      outline: none;
+      width: 100%;
+    }
+    input:focus { border-color: var(--green); }
+
+    select {
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      background: var(--surface);
+      color: var(--text1);
+      outline: none;
+      cursor: pointer;
+    }
+
+    button {
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text2);
+      cursor: pointer;
+      padding: 7px 14px;
+      transition: background 0.12s;
+    }
+    button:hover { background: var(--surface2); }
+    button:active { transform: scale(0.98); }
+
+    .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 500;
+      padding: 2px 8px; border-radius: 99px;
+    }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      overflow: hidden; clip: rect(0,0,0,0);
+    }
+  </style>
+</head>
+<body>
+<div id="root"><div style="padding:2rem;color:#9a9a95;font-family:Inter,sans-serif">Laden...</div></div>
+
+<script type="text/babel">
+/* ─────────────────────────────────────────────
+   STAP 1: Vul hier jouw Firebase config in
+   (zie de instructies in README.md)
+──────────────────────────────────────────────── */
+const firebaseConfig = {
+  apiKey: "AIzaSyBsOPqzJ17AiI24EjDPDG2lZZkEuHKHtQg",
+  authDomain: "camping-checklist-56f56.firebaseapp.com",
+  databaseURL: "https://camping-checklist-56f56-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "camping-checklist-56f56",
+  storageBucket: "camping-checklist-56f56.firebasestorage.app",
+  messagingSenderId: "899083795440",
+  appId: "1:899083795440:web:ff95e33f151a3e18227b35",
+  measurementId: "G-2MW3WY2PVY"
+};
+/* ─────────────────────────────────────────────────────── */
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ROOT = "camping_checklist";
+
+/* ── Data ─────────────────────────────────────────────── */
+const PEOPLE = [
+  { id:"luca",   name:"Luca",   ini:"Lu", t:"#085041", bg:"#9FE1CB", bd:"#1D9E75" },
+  { id:"jeroen", name:"Jeroen", ini:"Je", t:"#0C447C", bg:"#B5D4F4", bd:"#378ADD" },
+  { id:"jasper", name:"Jasper", ini:"Ja", t:"#854F0B", bg:"#FAC775", bd:"#EF9F27" },
+  { id:"jordy",  name:"Jordy",  ini:"Jo", t:"#72243E", bg:"#F4C0D1", bd:"#D4537E" },
+];
+
+const DEFAULT_ITEMS = [
+  { id:"tent",           label:"Tent",                          cat:"must", note:"Max 3 personen per tent bij trekking camps" },
+  { id:"slaapzak",       label:"Slaapzak",                      cat:"must", note:"Nachten kunnen 5–10°C zijn, ook in de zomer" },
+  { id:"matras",         label:"Matras / isolatie mattje",       cat:"must" },
+  { id:"drank",          label:"Drank",                         cat:"must", note:"Min. 2L per persoon per dag — geen water bij de camps!" },
+  { id:"waterfilter",    label:"Waterfilter of zuiveringstab.",  cat:"must", note:"Als backup voor beekwater" },
+  { id:"eten",           label:"Eten",                          cat:"must", note:"Genoeg voor alle dagen — pak licht in" },
+  { id:"gaspittje",      label:"Gaspitje + gasbus",             cat:"must" },
+  { id:"pannetje",       label:"Pannetje",                      cat:"must" },
+  { id:"spork",          label:"Spork / bestek",                cat:"must" },
+  { id:"aanstekers",     label:"Aanstekers (x2)",               cat:"must" },
+  { id:"wcpapier",       label:"WC-papier + zip-lock zakjes",   cat:"must", note:"Meepakken — niet achterlaten" },
+  { id:"schepje",        label:"Troffel / schepje",             cat:"must", note:"Voor het begraven van toiletafval" },
+  { id:"vuilniszakjes",  label:"Vuilniszakjes (x3)",            cat:"must", note:"Alles wat je meebrengt, neem je mee terug" },
+  { id:"ehbo",           label:"EHBO kit",                      cat:"must", note:"Blaarpleisters zijn een must op dag 1" },
+  { id:"pincet",         label:"Pincet tegen teken",            cat:"must", note:"Hoog tekenrisico — dagelijks controleren" },
+  { id:"insectenspray",  label:"Insectenspray (DEET)",          cat:"must" },
+  { id:"zonnebrand",     label:"Zonnebrand (SPF 30+)",          cat:"must" },
+  { id:"zaklamp",        label:"Zaklamp + reserve batterijen",  cat:"must" },
+  { id:"powerbank",      label:"Powerbank (vol opgeladen)",      cat:"must", note:"Geen laadpunten bij de camps" },
+  { id:"komoot",         label:"Komoot met offline kaart",       cat:"must", note:"Download voor vertrek — weinig bereik in het bos" },
+  { id:"wandelschoenen", label:"Wandelschoenen (ingelopen!)",    cat:"must", note:"Paden kunnen modderig zijn" },
+  { id:"regenjas",       label:"Regenjas / poncho",             cat:"must", note:"Het Zwarte Woud heeft veel regen" },
+  { id:"warme_laag",     label:"Warme jas / fleece",            cat:"must", note:"Avonden zijn koud, ook in de zomer" },
+  { id:"speelkaarten",   label:"Speelkaarten",                  cat:"must" },
+  { id:"geld",           label:"Contant geld (EUR)",            cat:"must", note:"Sommige dorpjes accepteren geen pin" },
+  { id:"id_kaart",       label:"Paspoort / ID-kaart",           cat:"must" },
+  { id:"kussen",         label:"Kussen",                        cat:"nice" },
+  { id:"stoeltje",       label:"Opvouwbaar stoeltje",           cat:"nice" },
+  { id:"koffie",         label:"Koffie / thee",                 cat:"nice" },
+  { id:"merino_sokken",  label:"Merino wol sokken (x3 paar)",   cat:"nice", note:"Echt de moeite waard — minder blaren" },
+  { id:"mok",            label:"Mok",                           cat:"nice" },
+  { id:"ducktape",       label:"Ducktape (kleine rol)",         cat:"nice", note:"Repareert bijna alles" },
+  { id:"mes",            label:"Mes / zaag",                    cat:"nice" },
+  { id:"trekstokken",    label:"Trekstokken",                   cat:"nice", note:"Handig op lange dagen" },
+  { id:"natte_doekjes",  label:"Natte doekjes",                 cat:"nice" },
+  { id:"handgel",        label:"Handdesinfectant",              cat:"nice" },
+  { id:"regenhoes",      label:"Regenhoes voor rugzak",         cat:"nice" },
+  { id:"droogzakken",    label:"Droogzakken / pack liners",     cat:"nice", note:"Houdt spullen droog bij regen" },
+  { id:"boek",           label:"Boek of dagboek",              cat:"nice" },
+];
+
+/* ── Helpers ──────────────────────────────────────────── */
+const s = (obj) => JSON.stringify(obj);
+const toArr = (obj) => obj ? Object.values(obj) : [];
+
+/* ── App ──────────────────────────────────────────────── */
+const { useState, useEffect, useRef } = React;
+
+function App() {
+  const [remote, setRemote]   = useState({ checked:{}, assigned:{}, custom:{} });
+  const [filter, setFilter]   = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding]   = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newCat, setNewCat]   = useState("must");
+
+  /* ── Firebase sync ──────────────────────────────────── */
+  useEffect(() => {
+    const ref = db.ref(ROOT);
+    ref.on("value", snap => {
+      const v = snap.val() || {};
+      setRemote({
+        checked:  v.checked  || {},
+        assigned: v.assigned || {},
+        custom:   v.custom   || {},
+      });
+      setLoading(false);
+    });
+    return () => ref.off();
+  }, []);
+
+  const toggleCheck = (id) =>
+    db.ref(`${ROOT}/checked/${id}`).transaction(v => !v);
+
+  const toggleAssign = (itemId, pid) =>
+    db.ref(`${ROOT}/assigned/${itemId}/${pid}`).transaction(v => !v);
+
+  const addItem = () => {
+    if (!newLabel.trim()) return;
+    const id = "c_" + Date.now();
+    db.ref(`${ROOT}/custom/${id}`).set({ id, label: newLabel.trim(), cat: newCat });
+    setNewLabel(""); setAdding(false);
+  };
+
+  const removeItem = (id) => {
+    db.ref(`${ROOT}/custom/${id}`).remove();
+    db.ref(`${ROOT}/checked/${id}`).remove();
+    db.ref(`${ROOT}/assigned/${id}`).remove();
+  };
+
+  const resetAll = () => {
+    if (!confirm("Weet je zeker dat je alle vinkjes wilt wissen?")) return;
+    db.ref(`${ROOT}/checked`).set(null);
+  };
+
+  /* ── Derived state ──────────────────────────────────── */
+  const allItems = [...DEFAULT_ITEMS, ...toArr(remote.custom)];
+  const visible  = filter === "all"
+    ? allItems
+    : allItems.filter(i => remote.assigned[i.id]?.[filter]);
+
+  const must = visible.filter(i => i.cat === "must");
+  const nice = visible.filter(i => i.cat === "nice");
+
+  const totalAll   = allItems.length;
+  const checkedAll = allItems.filter(i => remote.checked[i.id]).length;
+  const pct = totalAll ? Math.round(checkedAll / totalAll * 100) : 0;
+
+  /* ── Render helpers ─────────────────────────────────── */
+  const Avatar = ({ p, on, onClick }) => (
+    <div onClick={onClick} title={p.name} style={{
+      width:28, height:28, borderRadius:"50%", cursor:"pointer",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      fontSize:10, fontWeight:500, userSelect:"none", flexShrink:0,
+      background: on ? p.bg : "var(--surface2)",
+      color:      on ? p.t  : "var(--text3)",
+      border:     `1.5px solid ${on ? p.bd : "transparent"}`,
+      transition: "all 0.13s",
+    }}>{p.ini}</div>
+  );
+
+  const Checkbox = ({ checked, onClick }) => (
+    <div onClick={onClick} style={{
+      width:20, height:20, flexShrink:0, borderRadius:5, cursor:"pointer",
+      border: checked ? "none" : "1.5px solid var(--border2)",
+      background: checked ? "var(--green)" : "transparent",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      transition:"background 0.13s", marginTop:1,
+    }}>
+      {checked && <svg width="11" height="11" viewBox="0 0 12 12">
+        <polyline points="2,6 5,9 10,3" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>}
+    </div>
+  );
+
+  const Section = ({ items, label }) => {
+    if (!items.length) return null;
+    return (
+      <div style={{ marginBottom:"1.5rem" }}>
+        <div style={{ fontSize:11, fontWeight:500, letterSpacing:"0.07em", textTransform:"uppercase", color:"var(--text3)", marginBottom:8, paddingLeft:2 }}>
+          {label}
+        </div>
+        <div style={{ background:"var(--surface)", border:"0.5px solid var(--border)", borderRadius:"var(--radius)", overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+          {items.map((item, idx) => {
+            const isChecked = !!remote.checked[item.id];
+            const iAss      = remote.assigned[item.id] || {};
+            return (
+              <div key={item.id} style={{
+                display:"flex", alignItems:"center", gap:10, padding:"11px 14px",
+                borderTop: idx===0 ? "none" : "0.5px solid var(--border)",
+                background: isChecked ? "var(--surface2)" : "var(--surface)",
+                opacity: isChecked ? 0.6 : 1, transition:"opacity 0.15s",
+              }}>
+                <Checkbox checked={isChecked} onClick={() => toggleCheck(item.id)} />
+
+                <div style={{ flex:1, cursor:"pointer", minWidth:0 }} onClick={() => toggleCheck(item.id)}>
+                  <div style={{ fontSize:14, lineHeight:1.4, textDecoration: isChecked ? "line-through" : "none", color:"var(--text1)" }}>
+                    {item.label}
+                  </div>
+                  {item.note && <div style={{ fontSize:12, color:"var(--text3)", marginTop:2 }}>{item.note}</div>}
+                </div>
+
+                <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                  {PEOPLE.map(p => (
+                    <Avatar key={p.id} p={p} on={!!iAss[p.id]} onClick={() => toggleAssign(item.id, p.id)} />
+                  ))}
+                  {item.id?.startsWith("c_") && (
+                    <div onClick={() => removeItem(item.id)} title="Verwijder" style={{
+                      width:22, height:22, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+                      color:"var(--text3)", marginLeft:2, borderRadius:"50%", transition:"color 0.12s"
+                    }}>
+                      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                        <line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) return (
+    <div style={{ padding:"3rem", textAlign:"center", color:"var(--text3)", fontSize:14 }}>Verbinding maken...</div>
+  );
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom:"1.5rem" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+          <div>
+            <h1 style={{ fontSize:22, fontWeight:500, color:"var(--text1)", letterSpacing:"-0.3px" }}>
+              Zwarte Woud
+            </h1>
+            <p style={{ fontSize:13, color:"var(--text2)", marginTop:3 }}>
+              Packing checklist · {checkedAll} van {totalAll} ingepakt
+            </p>
+          </div>
+          <button onClick={resetAll} style={{ fontSize:12, color:"var(--text3)", display:"flex", alignItems:"center", gap:5, flexShrink:0, marginTop:2 }}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 7a6 6 0 1 0 6-6 6 6 0 0 0-4.24 1.76L1 5"/><path d="M1 1v4h4"/>
+            </svg>
+            Reset
+          </button>
+        </div>
+
+        {/* Progress */}
+        <div style={{ height:5, background:"var(--surface3)", borderRadius:99, marginTop:14, overflow:"hidden" }}>
+          <div style={{ height:"100%", width:pct+"%", background:"var(--green)", borderRadius:99, transition:"width 0.4s ease" }} />
+        </div>
+      </div>
+
+      {/* Person filter */}
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:"1.5rem" }}>
+        {[{id:"all", name:"Iedereen"}].concat(PEOPLE).map(p => {
+          const isAll    = p.id === "all";
+          const active   = filter === p.id;
+          const myItems  = !isAll ? allItems.filter(i => remote.assigned[i.id]?.[p.id]) : [];
+          const myDone   = myItems.filter(i => remote.checked[i.id]).length;
+          return (
+            <button key={p.id} onClick={() => setFilter(active && !isAll ? "all" : p.id)} style={{
+              display:"flex", alignItems:"center", gap:6, padding:"5px 12px",
+              borderRadius:99, fontSize:13, fontWeight: active ? 500 : 400,
+              border: `0.5px solid ${active ? (isAll ? "var(--green)" : p.bd) : "var(--border2)"}`,
+              background: active ? (isAll ? "var(--green-bg)" : p.bg) : "var(--surface)",
+              color: active ? (isAll ? "var(--green-t)" : p.t) : "var(--text2)",
+              transition:"all 0.13s"
+            }}>
+              {!isAll && (
+                <div style={{
+                  width:20, height:20, borderRadius:"50%", background:p.bg,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:10, fontWeight:500, color:p.t, border:`1px solid ${p.bd}`, flexShrink:0
+                }}>{p.ini}</div>
+              )}
+              {p.name}
+              {!isAll && myItems.length > 0 && (
+                <span style={{ fontSize:11, background:"rgba(0,0,0,0.08)", color:"inherit", borderRadius:99, padding:"1px 6px" }}>
+                  {myDone}/{myItems.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Empty state for filtered view */}
+      {filter !== "all" && visible.length === 0 && (
+        <div style={{
+          textAlign:"center", padding:"2rem 1rem", color:"var(--text3)",
+          border:"0.5px dashed var(--border2)", borderRadius:"var(--radius)", marginBottom:"1.5rem", fontSize:14
+        }}>
+          Nog geen items toegewezen aan {PEOPLE.find(p => p.id===filter)?.name}.<br/>
+          <span style={{ fontSize:13 }}>Klik op de initialen naast een item om het toe te wijzen.</span>
+        </div>
+      )}
+
+      {/* Lists */}
+      <Section items={must} label="Must have" />
+      <Section items={nice} label="Nice to have" />
+
+      {/* Add item */}
+      {adding ? (
+        <div style={{
+          background:"var(--surface)", border:"0.5px solid var(--border2)", borderRadius:"var(--radius)",
+          padding:"14px 16px", marginBottom:"1rem"
+        }}>
+          <div style={{ fontSize:13, fontWeight:500, color:"var(--text2)", marginBottom:10 }}>Item toevoegen</div>
+          <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <input
+              autoFocus
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              onKeyDown={e => { if (e.key==="Enter") addItem(); if (e.key==="Escape") setAdding(false); }}
+              placeholder="Item naam..."
+              style={{ flex:1 }}
+            />
+            <select value={newCat} onChange={e => setNewCat(e.target.value)} style={{ flexShrink:0 }}>
+              <option value="must">Must have</option>
+              <option value="nice">Nice to have</option>
+            </select>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={addItem} style={{ background:"var(--green)", color:"#fff", border:"none", fontWeight:500 }}>
+              Toevoegen
+            </button>
+            <button onClick={() => { setAdding(false); setNewLabel(""); }}>Annuleren</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} style={{
+          display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+          width:"100%", padding:10, color:"var(--text3)",
+          border:"0.5px dashed var(--border2)", background:"none", borderRadius:"var(--radius)"
+        }}>
+          + Item toevoegen
+        </button>
+      )}
+
+      <p style={{ fontSize:12, color:"var(--text3)", marginTop:"1.25rem", textAlign:"center" }}>
+        Klik op initialen om een item aan iemand toe te wijzen · filter bovenaan per persoon
+      </p>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
